@@ -1100,8 +1100,29 @@ function printTicket(){
       +'<div class="td"></div>'
       +"<div class='tc' style='font-size:10px;margin-top:5px'>Merci ! A bientot chez Pizzamore</div>";
     document.getElementById('ticket').innerHTML=ticketHtml;
-    window.print();
-    state.order=[];renderOrder();
+    // Détecter si window.print() est supporté (WebView Android = non)
+    let printed=false;
+    try{
+      const before=Date.now();
+      window.print();
+      // Si print a ouvert un dialogue, un peu de temps s'est écoulé
+      printed=(Date.now()-before)>50;
+    }catch(e){}
+    if(printed){
+      state.order=[];renderOrder();
+    } else {
+      // WebView : afficher le ticket en plein écran + bouton vider
+      document.getElementById('ticket').style.cssText='position:fixed;inset:0;background:#fff;z-index:99999;overflow:auto;padding:20px;';
+      const closeBtn=document.createElement('button');
+      closeBtn.textContent='✅ Ticket noté — Vider la commande';
+      closeBtn.style.cssText='position:sticky;bottom:10px;width:100%;padding:14px;background:#3dba6f;color:#fff;border:none;border-radius:10px;font-size:1em;font-weight:700;cursor:pointer;margin-top:16px;display:block;';
+      closeBtn.onclick=function(){
+        document.getElementById('ticket').style.cssText='display:none';
+        state.order=[];renderOrder();
+        toast('Commande vidée !');
+      };
+      document.getElementById('ticket').appendChild(closeBtn);
+    }
   } catch(err){
     toast('Erreur impression : '+err.message);
     console.error(err);
