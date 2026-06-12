@@ -286,32 +286,16 @@
 
   /* ─── IMPRESSION ─── */
   #ticket{display:none;}
-  #facture{display:none;}
   @media print{
-    body:not(.print-facture)>*:not(#ticket){display:none!important;}
-    body:not(.print-facture) #ticket{display:block!important;font-family:'Courier New',monospace;font-size:12px;width:80mm;margin:0 auto;color:#000;}
+    body>*:not(#ticket){display:none!important;}
+    #ticket{display:block!important;font-family:'Courier New',monospace;font-size:12px;width:80mm;margin:0 auto;color:#000;}
     .tr{display:flex;justify-content:space-between;margin:2px 0;}
     .td{border-top:1px dashed #000;margin:4px 0;}
     .tnote{margin-left:8px;font-size:11px;font-style:italic;color:#444;}
     .tc{text-align:center;}
     .tbold{font-weight:bold;}
     .tlg{font-size:14px;font-weight:bold;}
-    /* Facture A4 */
-    body.print-facture>*:not(#facture){display:none!important;}
-    body.print-facture #facture{display:block!important;font-family:Arial,sans-serif;font-size:12px;color:#000;padding:20px;max-width:800px;margin:0 auto;}
-    .fac-table{width:100%;border-collapse:collapse;margin:12px 0;}
-    .fac-table th{background:#eee;border:1px solid #999;padding:6px 8px;text-align:left;font-size:11px;}
-    .fac-table td{border:1px solid #ccc;padding:6px 8px;font-size:11px;}
-    .fac-table td.num{text-align:right;}
-    .fac-total-line{display:flex;justify-content:space-between;padding:3px 0;font-size:12px;}
-    .fac-bold{font-weight:bold;}
   }
-  /* Facture modal */
-  .fac-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9000;justify-content:center;align-items:center;}
-  .fac-overlay.on{display:flex;}
-  .fac-box{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:20px;width:min(360px,92vw);display:flex;flex-direction:column;gap:10px;}
-  .fac-box h3{margin:0;font-size:1em;color:var(--text);}
-  .fac-box input{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:.95em;width:100%;box-sizing:border-box;}
 
   /* ─── SCROLLBAR ─── */
   ::-webkit-scrollbar{width:4px;} ::-webkit-scrollbar-track{background:transparent;} ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
@@ -421,20 +405,6 @@
     <button class="done-btn" onclick="closeCash()">✅ Fermer</button>
   </div>
 </div>
-
-<!-- ══════════════════════ MODAL FACTURE ══════════════════════ -->
-<div class="fac-overlay" id="factureModal">
-  <div class="fac-box">
-    <h3>🧾 Facture client</h3>
-    <div style="font-size:.8em;color:var(--text2)">Nom / Raison sociale du client</div>
-    <input id="facClientName" type="text" placeholder="Ex: Dupont Marie ou SARL Exemple">
-    <div style="font-size:.8em;color:var(--text2)">Adresse client (optionnel)</div>
-    <input id="facClientAddr" type="text" placeholder="Ex: 12 rue des Fleurs, 74100 Annemasse">
-    <button class="mok" onclick="printFacture()" style="margin-top:4px;">🖨️ Imprimer la facture</button>
-    <button class="btn-s" onclick="closeFactureModal()">Annuler</button>
-  </div>
-</div>
-<div id="facture" style="display:none"></div>
 
 <!-- ══════════════════════ MODAL SUPPLÉMENTS ══════════════════════ -->
 <div class="overlay" id="suppModal">
@@ -1142,93 +1112,41 @@ function printTicket(){
 }
 
 
-function openFactureModal(){
-  if(!state.order.length){toast('Commande vide !');return;}
-  document.getElementById('facClientName').value='';
-  document.getElementById('facClientAddr').value='';
-  document.getElementById('factureModal').classList.add('on');
-  setTimeout(()=>document.getElementById('facClientName').focus(),100);
-}
-function closeFactureModal(){
-  document.getElementById('factureModal').classList.remove('on');
-}
+function openFactureModal(){printFacture();}
+function closeFactureModal(){}
 function printFacture(){
-  const clientName=document.getElementById('facClientName').value.trim();
-  if(!clientName){document.getElementById('facClientName').style.borderColor='var(--danger)';return;}
-  document.getElementById('facClientName').style.borderColor='';
-  const clientAddr=document.getElementById('facClientAddr').value.trim();
-  closeFactureModal();
-
-  // Numéro de facture séquentiel
+  if(!state.order.length){toast('Commande vide !');return;}
   const facNum=(parseInt(localStorage.getItem('pza_facture_num')||'0')+1);
   localStorage.setItem('pza_facture_num',facNum);
-  const facId='FAC-'+new Date().getFullYear()+'-'+String(facNum).padStart(4,'0');
-
-  const taux=0.10;
   const now=new Date();
   const dateStr=now.toLocaleDateString('fr-FR');
-
-  // Lignes de commande
-  let lignes=[];
-  state.order.forEach(function(it){
-    const desc=it.qty+'× '+it.name
-      +(it.fmt==='Ruota di Carro'?' (Ruota di Carro)':it.fmt==='Baby'?' (Baby)':'')
-      +(it.supps&&it.supps.length?' + '+it.supps.map(s=>s.name).join(', '):'')
-      +(it.rm?' [sans '+it.rm+']':'');
-    const totalTTC=it.unit*it.qty;
-    const totalHT=totalTTC/1.10;
-    const tva=totalTTC-totalHT;
-    lignes.push({desc,qty:it.qty,puHT:(it.unit/1.10),totalHT,tva,totalTTC});
-  });
-  const grandTTC=lignes.reduce((a,l)=>a+l.totalTTC,0);
+  const grandTTC=state.order.reduce((a,i)=>a+i.unit*i.qty,0);
   const grandHT=grandTTC/1.10;
   const grandTVA=grandTTC-grandHT;
-
-  let rows='';
-  lignes.forEach(function(l){
-    rows+='<tr>'
-      +'<td>'+l.desc+'</td>'
-      +'<td class="num">'+l.qty+'</td>'
-      +'<td class="num">'+l.puHT.toFixed(2)+' €</td>'
-      +'<td class="num">10 %</td>'
-      +'<td class="num">'+l.tva.toFixed(2)+' €</td>'
-      +'<td class="num fac-bold">'+l.totalTTC.toFixed(2)+' €</td>'
-      +'</tr>';
+  let lines='';
+  state.order.forEach(function(it){
+    const desc=it.qty+'x '+it.name
+      +(it.fmt==='Ruota di Carro'?' (Ruota)':it.fmt==='Baby'?' (Baby)':'')
+      +(it.supps&&it.supps.length?' + '+it.supps.map(s=>s.name).join(', '):'')
+      +(it.rm?' sans '+it.rm:'');
+    const ttc=(it.unit*it.qty).toFixed(2);
+    lines+='<div class="tr"><span>'+desc+'</span><span>'+ttc+' €</span></div>';
   });
-
   const html=''
-    +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;">'
-    +'<div>'
-    +'<div style="font-size:18px;font-weight:bold;margin-bottom:4px">'+(settings.name||"Pizz'Amore")+'</div>'
-    +(settings.address?'<div>'+settings.address+'</div>':'')
-    +(settings.phone?'<div>'+settings.phone+'</div>':'')
-    +(settings.siret?'<div>SIRET : '+settings.siret+'</div>':'')
+    +'<div class="tc" style="margin-bottom:4px">'
+    +'<div style="font-size:15px;font-weight:bold">FACTURE</div>'
+    +'<div style="font-size:13px;font-weight:bold">'+(settings.name||"Pizz'Amore")+'</div>'
+    +'<div style="font-size:10px">N° '+String(facNum).padStart(4,'0')+' — '+dateStr+'</div>'
     +'</div>'
-    +'<div style="text-align:right">'
-    +'<div style="font-size:16px;font-weight:bold">FACTURE</div>'
-    +'<div>N° '+facId+'</div>'
-    +'<div>Date : '+dateStr+'</div>'
-    +'</div></div>'
-    +'<div style="border:1px solid #ccc;border-radius:6px;padding:10px;margin-bottom:16px;">'
-    +'<div style="font-weight:bold;margin-bottom:4px">Client :</div>'
-    +'<div>'+clientName+'</div>'
-    +(clientAddr?'<div>'+clientAddr+'</div>':'')
-    +'</div>'
-    +'<table class="fac-table"><thead><tr>'
-    +'<th>Désignation</th><th>Qté</th><th>P.U. HT</th><th>TVA</th><th>Montant TVA</th><th>Total TTC</th>'
-    +'</tr></thead><tbody>'+rows+'</tbody></table>'
-    +'<div style="display:flex;justify-content:flex-end;margin-top:8px;">'
-    +'<div style="min-width:220px;border:1px solid #ccc;border-radius:6px;padding:10px;">'
-    +'<div class="fac-total-line"><span>Total HT</span><span>'+grandHT.toFixed(2)+' €</span></div>'
-    +'<div class="fac-total-line"><span>TVA 10 %</span><span>'+grandTVA.toFixed(2)+' €</span></div>'
-    +'<div class="fac-total-line fac-bold" style="font-size:14px;border-top:1px solid #999;padding-top:6px;margin-top:4px;"><span>TOTAL TTC</span><span>'+grandTTC.toFixed(2)+' €</span></div>'
-    +'</div></div>'
-    +'<div style="margin-top:20px;font-size:10px;color:#666;text-align:center;">TVA non acquittée par le bénéficiaire — Pizzeria / Restauration rapide — Taux réduit 10 %</div>';
-
-  document.getElementById('facture').innerHTML=html;
-  document.body.classList.add('print-facture');
+    +'<div class="td"></div>'
+    +lines
+    +'<div class="td"></div>'
+    +'<div class="tr"><span>Total HT</span><span>'+grandHT.toFixed(2)+' €</span></div>'
+    +'<div class="tr"><span>TVA 10 %</span><span>'+grandTVA.toFixed(2)+' €</span></div>'
+    +'<div class="td"></div>'
+    +'<div class="tr tbold tlg"><span>TOTAL TTC</span><span>'+grandTTC.toFixed(2)+' €</span></div>';
+  document.getElementById('ticket').innerHTML=html;
   window.print();
-  document.body.classList.remove('print-facture');
 }
 
 function savePendingFromOrder(){
@@ -2666,9 +2584,7 @@ document.querySelectorAll(".overlay").forEach(function(ov){
 document.getElementById("cashModal").addEventListener("click",function(e){
   if(e.target===this) closeCash();
 });
-document.getElementById("factureModal").addEventListener("click",function(e){
-  if(e.target===this) closeFactureModal();
-});
+
 
 </script>
 <!-- ══════════════════════ BARRE BAS MOBILE ══════════════════════ -->
