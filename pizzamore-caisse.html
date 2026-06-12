@@ -154,6 +154,8 @@
   .edit-item-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
   .ruota-toggle{background:transparent;border:1px solid var(--border);color:var(--text2);padding:3px 7px;border-radius:5px;cursor:pointer;font-size:.68em;white-space:nowrap;transition:all .15s;}
   .ruota-toggle.on{background:rgba(139,124,248,.2);border-color:var(--ruota);color:var(--ruota);}
+  .cut-toggle{background:transparent;border:1px solid var(--border);color:var(--text2);border-radius:6px;padding:3px 7px;font-size:.75em;cursor:pointer;transition:all .15s;}
+  .cut-toggle.on{background:rgba(33,150,243,.18);border-color:#2196f3;color:#64b5f6;}
   .baby-toggle{background:transparent;border:1px solid var(--border);color:var(--text2);padding:3px 7px;border-radius:5px;cursor:pointer;font-size:.68em;white-space:nowrap;transition:all .15s;}
   .baby-toggle.on{background:rgba(255,105,180,.2);border-color:#e91e8c;color:#e91e8c;}
   .oifmt-baby{font-size:.65em;color:#e91e8c;background:rgba(255,105,180,.15);padding:2px 6px;border-radius:4px;white-space:nowrap;margin-top:1px;}
@@ -387,7 +389,6 @@
       </div>
       <div class="otot"><span>TOTAL</span><span id="otot">0.00 €</span></div>
       <button class="btn-p" onclick="printTicket()">🖨️ Imprimer le ticket</button>
-      <button class="btn-s" onclick="openFactureModal()" style="margin-top:6px;">🧾 Générer une facture</button>
       <button class="btn-s" onclick="clearOrder()" style="color:var(--danger);border-color:var(--danger);margin-top:6px;">🗑️ Vider le panier</button>
     </div>
   </aside>
@@ -983,6 +984,10 @@ function toggleBaby(uid){
   renderOrder();
   toast(it.fmt==='Baby'?'👶 Baby activé (-2 €) !':'Pizza classique');
 }
+function toggleCut(uid){
+  const it=state.order.find(x=>x.uid===uid);
+  if(it){it.cut=!it.cut;renderOrder();}
+}
 function changeQty(uid,d){
   const it=state.order.find(x=>x.uid===uid);
   if(it){it.qty=Math.max(1,it.qty+d);renderOrder();}
@@ -1010,9 +1015,10 @@ function renderOrder(){
         ${it.fmt==='Ruota di Carro'?`<span class="oifmt">🛞 Ruota</span>`:it.fmt==='Baby'?`<span class="oifmt-baby">👶 Baby</span>`:''}
         <div class="oiprice">${(it.unit*it.qty).toFixed(2)} €</div>
       </div>
-      ${it.supps.length||it.rm?`<div class="oidet">
+      ${it.supps.length||it.rm||it.cut?`<div class="oidet">
         ${it.supps.map(s=>`<div>+ ${s.name} (${s.price.toFixed(2)} €)</div>`).join('')}
         ${it.rm?`<div class="rmv">⚠ ${it.rm}</div>`:''}
+        ${it.cut?`<div style="color:#64b5f6;font-size:.82em">✂️ À couper</div>`:''}
       </div>`:''}
       <div class="qrow">
         <button class="qb" onclick="changeQty(${it.uid},-1)">−</button>
@@ -1020,6 +1026,7 @@ function renderOrder(){
         <button class="qb" onclick="changeQty(${it.uid},+1)">+</button>
         ${!it.noFmt?`<button class="ruota-toggle ${it.fmt==='Ruota di Carro'?'on':''}" onclick="toggleRuota(${it.uid})">🛞 Ruota</button>`:''}
         ${!it.noFmt?`<button class="baby-toggle ${it.fmt==='Baby'?'on':''}" onclick="toggleBaby(${it.uid})">👶 Baby</button>`:''}
+        <button class="cut-toggle ${it.cut?'on':''}" onclick="toggleCut(${it.uid})">✂️ Couper</button>
         <button class="edit-item-btn" onclick="editOrderItem(${it.uid})" title="Modifier">✏️</button>
         <button class="del" onclick="removeItem(${it.uid})">✕</button>
       </div>
@@ -1093,6 +1100,7 @@ function printTicket(){
         ticketHtml+='<div class="tnote">+ '+s.name+': '+s.price.toFixed(2)+' €</div>';
       });
       if(it.rm) ticketHtml+='<div class="tnote">⚠ '+it.rm+'</div>';
+      if(it.cut) ticketHtml+='<div class="tnote">✂ A couper</div>';
       ticketHtml+='</div>';
     });
     ticketHtml+=''
@@ -1194,7 +1202,7 @@ function savePendingFromOrder(){
     type:'normal',
     pickup:document.getElementById('ptime').value,
     total,
-    items:state.order.map(i=>({name:i.name,qty:i.qty,unit:i.unit,fmt:i.fmt,rm:i.rm,supps:i.supps})),
+    items:state.order.map(i=>({name:i.name,qty:i.qty,unit:i.unit,fmt:i.fmt,rm:i.rm,supps:i.supps,cut:i.cut})),
   });
   updatePendingBadge();
 }
