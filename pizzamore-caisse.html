@@ -2535,4 +2535,22 @@ updatePendingBadge();
 })();
 
 // Fermer les modals en cliquant sur le fond
-doc
+document.querySelectorAll(".overlay").forEach(function(ov){
+  ov.addEventListener("click",function(e){
+    if(e.target===this) this.classList.remove("on");
+  });
+});
+document.getElementById("cashModal").addEventListener("click",function(e){
+  if(e.target===this) closeCash();
+});
+
+</script>
+<!-- ══════════════════════ BARRE BAS MOBILE ══════════════════════ -->
+<div id="bottomBar">
+  <button class="bbar-btn" onclick="toggleVoice()">🎙️<br>Vocal</button>
+  <button class="bbar-btn chabl-bb" onclick="startChablFlow()">🛵<br>Chabl</button>
+  <button class="bbar-btn" onclick="openPending()">🕐<br><span id="pendingCountMobile"></span>En cours</button>
+  <button class="bbar-btn cart" onclick="toggleMobileOrder()">🛒<br>Panier<span class="cart-badge" id="cartBadge" style="display:none">0</span></button>
+</div>
+</body>
+</html>
