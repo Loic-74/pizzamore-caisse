@@ -389,6 +389,7 @@
       </div>
       <div class="otot"><span>TOTAL</span><span id="otot">0.00 €</span></div>
       <button class="btn-p" onclick="printTicket()">🖨️ Imprimer le ticket</button>
+      <button class="btn-s cut-toggle" id="cutOrderBtn" onclick="toggleCutOrder()" style="margin-top:6px;">✂️ À couper</button>
       <button class="btn-s" onclick="clearOrder()" style="color:var(--danger);border-color:var(--danger);margin-top:6px;">🗑️ Vider le panier</button>
     </div>
   </aside>
@@ -984,9 +985,8 @@ function toggleBaby(uid){
   renderOrder();
   toast(it.fmt==='Baby'?'👶 Baby activé (-2 €) !':'Pizza classique');
 }
-function toggleCut(uid){
-  const it=state.order.find(x=>x.uid===uid);
-  if(it){it.cut=!it.cut;renderOrder();}
+function toggleCutOrder(){
+  state.cut=!state.cut;renderOrder();
 }
 function changeQty(uid,d){
   const it=state.order.find(x=>x.uid===uid);
@@ -999,7 +999,7 @@ function removeItem(uid){
 function clearOrder(){
   if(!state.order.length)return;
   if(!confirm('Vider la commande ?'))return;
-  state.order=[];renderOrder();
+  state.order=[];state.cut=false;renderOrder();
 }
 function renderOrder(){
   const el=document.getElementById('olist');
@@ -1015,10 +1015,9 @@ function renderOrder(){
         ${it.fmt==='Ruota di Carro'?`<span class="oifmt">🛞 Ruota</span>`:it.fmt==='Baby'?`<span class="oifmt-baby">👶 Baby</span>`:''}
         <div class="oiprice">${(it.unit*it.qty).toFixed(2)} €</div>
       </div>
-      ${it.supps.length||it.rm||it.cut?`<div class="oidet">
+      ${it.supps.length||it.rm?`<div class="oidet">
         ${it.supps.map(s=>`<div>+ ${s.name} (${s.price.toFixed(2)} €)</div>`).join('')}
         ${it.rm?`<div class="rmv">⚠ ${it.rm}</div>`:''}
-        ${it.cut?`<div style="color:#64b5f6;font-size:.82em">✂️ À couper</div>`:''}
       </div>`:''}
       <div class="qrow">
         <button class="qb" onclick="changeQty(${it.uid},-1)">−</button>
@@ -1026,7 +1025,6 @@ function renderOrder(){
         <button class="qb" onclick="changeQty(${it.uid},+1)">+</button>
         ${!it.noFmt?`<button class="ruota-toggle ${it.fmt==='Ruota di Carro'?'on':''}" onclick="toggleRuota(${it.uid})">🛞 Ruota</button>`:''}
         ${!it.noFmt?`<button class="baby-toggle ${it.fmt==='Baby'?'on':''}" onclick="toggleBaby(${it.uid})">👶 Baby</button>`:''}
-        <button class="cut-toggle ${it.cut?'on':''}" onclick="toggleCut(${it.uid})">✂️ Couper</button>
         <button class="edit-item-btn" onclick="editOrderItem(${it.uid})" title="Modifier">✏️</button>
         <button class="del" onclick="removeItem(${it.uid})">✕</button>
       </div>
@@ -1034,6 +1032,8 @@ function renderOrder(){
   `).join('');
   const total=state.order.reduce((a,i)=>a+i.unit*i.qty,0);
   document.getElementById('otot').textContent=total.toFixed(2)+' €';
+  const cutBtn=document.getElementById('cutOrderBtn');
+  if(cutBtn){cutBtn.classList.toggle('on',!!state.cut);cutBtn.textContent=state.cut?'✂️ À couper ✓':'✂️ À couper';}
   renderEveningCount();
   if(typeof updateCartBadge==='function') updateCartBadge();
 }
@@ -1105,6 +1105,7 @@ function printTicket(){
     });
     ticketHtml+=''
       +'<div class="td"></div>'
+      +(state.cut?'<div class="tc tbold" style="font-size:13px">✂ A COUPER</div><div class="td"></div>':'')
       +'<div class="tr tbold tlg"><span>TOTAL</span><span>'+total.toFixed(2)+' €</span></div>'
       +'<div class="td"></div>'
       +'<div class="tc tbold" style="font-size:13px;margin:5px 0">⏰ Récupération : '+(pt||'—')+'</div>'
@@ -1202,7 +1203,8 @@ function savePendingFromOrder(){
     type:'normal',
     pickup:document.getElementById('ptime').value,
     total,
-    items:state.order.map(i=>({name:i.name,qty:i.qty,unit:i.unit,fmt:i.fmt,rm:i.rm,supps:i.supps,cut:i.cut})),
+    cut:!!state.cut,
+    items:state.order.map(i=>({name:i.name,qty:i.qty,unit:i.unit,fmt:i.fmt,rm:i.rm,supps:i.supps})),
   });
   updatePendingBadge();
 }
