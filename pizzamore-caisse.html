@@ -1149,6 +1149,43 @@ function printFacture(){
   window.print();
 }
 
+function printFactureFromPending(id){
+  const p=JSON.parse(localStorage.getItem('pza_pending')||'[]');
+  const o=p.find(x=>x.id===id);
+  if(!o||!o.items) return;
+  const facNum=(parseInt(localStorage.getItem('pza_facture_num')||'0')+1);
+  localStorage.setItem('pza_facture_num',facNum);
+  const now=new Date();
+  const dateStr=now.toLocaleDateString('fr-FR');
+  const grandTTC=o.total||o.items.reduce((a,i)=>a+(i.unit||0)*i.qty,0);
+  const grandHT=grandTTC/1.10;
+  const grandTVA=grandTTC-grandHT;
+  let lines='';
+  o.items.forEach(function(it){
+    const desc=it.qty+'x '+it.name
+      +(it.fmt==='Ruota di Carro'?' (Ruota)':it.fmt==='Baby'?' (Baby)':'')
+      +(it.supps&&it.supps.length?' + '+(Array.isArray(it.supps)&&typeof it.supps[0]==='object'?it.supps.map(s=>s.name).join(', '):it.supps.join(', ')):'')
+      +(it.rm?' sans '+it.rm:'');
+    const ttc=it.unit?(it.unit*it.qty).toFixed(2):'';
+    lines+='<div class="tr"><span>'+desc+'</span>'+(ttc?'<span>'+ttc+' €</span>':'')+'</div>';
+  });
+  const html=''
+    +'<div class="tc" style="margin-bottom:4px">'
+    +'<div style="font-size:15px;font-weight:bold">FACTURE</div>'
+    +'<div style="font-size:13px;font-weight:bold">'+(settings.name||"Pizz'Amore")+'</div>'
+    +'<div style="font-size:10px">N° '+String(facNum).padStart(4,'0')+' — '+dateStr+'</div>'
+    +'</div>'
+    +'<div class="td"></div>'
+    +lines
+    +'<div class="td"></div>'
+    +'<div class="tr"><span>Total HT</span><span>'+grandHT.toFixed(2)+' €</span></div>'
+    +'<div class="tr"><span>TVA 10 %</span><span>'+grandTVA.toFixed(2)+' €</span></div>'
+    +'<div class="td"></div>'
+    +'<div class="tr tbold tlg"><span>TOTAL TTC</span><span>'+grandTTC.toFixed(2)+' €</span></div>';
+  document.getElementById('ticket').innerHTML=html;
+  window.print();
+}
+
 function savePendingFromOrder(){
   const total=state.order.reduce((a,i)=>a+i.unit*i.qty,0);
   savePending({
@@ -1692,6 +1729,7 @@ function renderPendingList(){
       '<div class="pcard-items">'+itemsHtml+'</div>'+
       (isChab?'':(o.total?'<div style="font-weight:700;color:var(--accent2);margin-bottom:6px">'+o.total.toFixed(2)+' €</div>':''))+
       (o.total?'<button class="cash-btn" onclick="openCash('+o.total+','+o.id+')">💶 Paiement espèces</button>':'')+
+      (!isChab?'<button class="cash-btn" style="background:rgba(255,193,7,.12);border-color:#ffc107;color:#ffc107;" onclick="printFactureFromPending('+o.id+')">🧾 Facture</button>':'')+
       '<button class="done-btn" onclick="markDone('+o.id+')">✅ Commande remise au client</button>'+
     '</div>';
   }).join('');
